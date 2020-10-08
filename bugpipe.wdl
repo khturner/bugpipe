@@ -23,10 +23,15 @@ workflow bugpipe {
 
     call annotate_assembly {
         input:
+            SRA_accession = SRA_accession,
+            contigs = assemble_genome.contigs
     }
 
     call generate_assembly_report {
         input:
+            SRA_accession = SRA_accession,
+            contigs = assemble_genome.contigs,
+            gff = annotate_assembly.gff
     }
 
 }
@@ -86,13 +91,12 @@ task assemble_genome {
     }
 
     output {
-        # YOU ARE HERE
-
+        File contigs = "${SRA_accession}/contigs.fa"
     }
 
     runtime {
         docker: "bugpipe/shovill:latest"
-        memory: "8G"
+        memory: "7G"
         cpu: "1"
     }
 
@@ -100,8 +104,38 @@ task assemble_genome {
 
 task annotate_assembly {
 
+    String SRA_accession
+    File contigs
+
+    command {
+        prokka --outdir ${SRA_accession}.prokka --prefix ${SRA_accession} --locustag ${SRA_accession} ${contigs}
+    }
+
+    runtime {
+        docker: "bugpipe/prokka:latest"
+        memory: "4G"
+        cpu: "1"
+    }
+
+    output {
+        File gff = "${SRA_accession}.prokka/${SRA_accession}.gff"
+    }
 }
 
 task generate_assembly_report {
+
+    String SRA_accession
+    File contigs
+    File gff
+
+    command {
+        quast.py -o ${SRA_accession}.quast -g ${gff} ${contigs}
+    }
+
+    runtime {
+        docker: "bugpipe/quast:latest"
+        memory: "4G"
+        cpu: "1"
+    }
 
 }
